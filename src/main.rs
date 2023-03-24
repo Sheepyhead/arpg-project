@@ -20,17 +20,11 @@ use bevy::{
     prelude::{shape::Plane, *},
     window::WindowResolution,
 };
-use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_prototype_debug_lines::DebugLinesPlugin;
-use common::TrackWorldObjectToScreenPosition;
-
-mod common;
-mod progress_bar;
 
 pub const CLEAR: Color = Color::BLACK;
 pub const WINDOW_HEIGHT: f32 = 600.0;
 pub const RESOLUTION: f32 = 16.0 / 9.0;
-pub const CAMERA_OFFSET: [f32; 3] = [0.0, 12.0, 10.0];
 
 fn main() {
     App::new()
@@ -48,7 +42,7 @@ fn main() {
                             WINDOW_HEIGHT * RESOLUTION,
                             WINDOW_HEIGHT,
                         )
-                        .with_scale_factor_override(1.5),
+                        .with_scale_factor_override(1.),
                         title: "ARPG".to_string(),
                         resizable: false,
                         ..default()
@@ -58,9 +52,10 @@ fn main() {
                 .set(ImagePlugin::default_nearest()),
         )
         .add_plugin(DebugLinesPlugin::with_depth_test(false))
-        .add_plugin(WorldInspectorPlugin::new())
+        // .add_plugin(WorldInspectorPlugin::new())
         // Internal plugins
         .add_startup_system(startup)
+        .add_system(CharacterAnimation::on_added)
         .run();
 }
 
@@ -69,6 +64,7 @@ const MAP_HEIGHT: u32 = 4 * 4; // Originally 22 * 4
 
 fn startup(
     mut commands: Commands,
+    ass: ResMut<AssetServer>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut mats: ResMut<Assets<StandardMaterial>>,
 ) {
@@ -101,4 +97,42 @@ fn startup(
         transform: Transform::from_xyz(MAP_WIDTH as f32 / 2., 0., MAP_HEIGHT as f32 / 2.),
         ..default()
     },));
+
+    commands.spawn((
+        SceneBundle {
+            scene: ass.load("player.glb#Scene0"),
+            transform: Transform::from_xyz(MAP_WIDTH as f32 / 2., 1., MAP_HEIGHT as f32 / 2.),
+            ..default()
+        },
+        CharacterAnimation {
+            idle_animation: ass.load("idle.glb#Animation0"),
+            ..default()
+        },
+    ));
+}
+
+#[derive(Component, Default)]
+pub struct CharacterAnimation {
+    idle_animation: Handle<AnimationClip>,
+    animation_player: Option<Entity>,
+}
+
+impl CharacterAnimation {
+    pub fn on_added(
+        mut animation_q: Query<&mut CharacterAnimation>,
+        parent_q: Query<&Parent, With<Children>>,
+        mut animation_player_q: Query<
+            (Entity, &Parent, &mut AnimationPlayer),
+            Added<AnimationPlayer>,
+        >,
+    ) {
+        for (player_entity, parent, mut player) in &mut animation_player_q {
+            if let Ok(parent) = parent_q.get(**parent) {
+                if let Ok(mut animation) = animation_q.get_mut(**parent) {
+                    animation.animation_player = Some(player_entity);
+                    player.play(animation.idle_animation.clone()).repeat();
+                }
+            }
+        }
+    }
 }

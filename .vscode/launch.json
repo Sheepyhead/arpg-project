@@ -7,15 +7,15 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug executable 'gem_td'",
+            "name": "Debug executable 'arpg-project'",
             "cargo": {
                 "args": [
                     "build",
-                    "--bin=gem_td",
-                    "--package=gem_td"
+                    "--bin=arpg-project",
+                    "--package=arpg-project"
                 ],
                 "filter": {
-                    "name": "gem_td",
+                    "name": "arpg-project",
                     "kind": "bin"
                 }
             },
@@ -28,16 +28,16 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug unit tests in executable 'gem_td'",
+            "name": "Debug unit tests in executable 'arpg-project'",
             "cargo": {
                 "args": [
                     "test",
                     "--no-run",
-                    "--bin=gem_td",
-                    "--package=gem_td"
+                    "--bin=arpg-project",
+                    "--package=arpg-project"
                 ],
                 "filter": {
-                    "name": "gem_td",
+                    "name": "arpg-project",
                     "kind": "bin"
                 }
             },

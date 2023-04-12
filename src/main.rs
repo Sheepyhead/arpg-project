@@ -19,8 +19,16 @@
 use bevy::{
     math::Vec3Swizzles,
     prelude::{shape::Plane, *},
+    render::{
+        camera::RenderTarget,
+        render_resource::{
+            Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
+        },
+        view::RenderLayers,
+    },
     window::WindowResolution,
 };
+use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_mod_picking::{
     DebugCursorPickingPlugin, DefaultPickingPlugins, PickingCameraBundle, PickingRaycastSet,
 };
@@ -32,7 +40,7 @@ use leafwing_input_manager::prelude::*;
 mod common;
 
 pub const CLEAR: Color = Color::BLACK;
-pub const WINDOW_HEIGHT: f32 = 600.0;
+pub const WINDOW_HEIGHT: f32 = 1000.0;
 pub const RESOLUTION: f32 = 16.0 / 9.0;
 
 fn main() {
@@ -64,7 +72,7 @@ fn main() {
         .add_plugins(DefaultPickingPlugins)
         .add_plugin(DebugCursorPickingPlugin)
         .add_plugin(InputManagerPlugin::<PlayerActions>::default())
-        // .add_plugin(WorldInspectorPlugin::new())
+        .add_plugin(WorldInspectorPlugin::new())
         // Internal plugins
         .add_startup_system(startup)
         .add_systems((
@@ -83,8 +91,56 @@ fn startup(
     mut commands: Commands,
     ass: ResMut<AssetServer>,
     mut meshes: ResMut<Assets<Mesh>>,
+    mut images: ResMut<Assets<Image>>,
     mut mats: ResMut<Assets<StandardMaterial>>,
 ) {
+    let size = Extent3d {
+        width: 800,
+        height: 600,
+        ..default()
+    };
+
+    // This is the texture that will be rendered to.
+    let mut image = Image {
+        texture_descriptor: TextureDescriptor {
+            label: None,
+            size,
+            dimension: TextureDimension::D2,
+            format: TextureFormat::Bgra8UnormSrgb,
+            mip_level_count: 1,
+            sample_count: 1,
+            usage: TextureUsages::TEXTURE_BINDING
+                | TextureUsages::COPY_DST
+                | TextureUsages::RENDER_ATTACHMENT,
+            view_formats: &[],
+        },
+        ..default()
+    };
+
+    // fill image.data with zeroes
+    image.resize(size);
+
+    let image_handle = images.add(image);
+
+    // This specifies the layer used for the first pass, which will be attached to the first pass camera and cube.
+    let main_pass_layer = RenderLayers::layer(1);
+
+    // Main pass texture, with material containing the rendered first pass texture.
+    commands.spawn((
+        SpriteBundle {
+            texture: image_handle.clone(),
+            sprite: Sprite {
+                custom_size: Some(Vec2::new(WINDOW_HEIGHT * RESOLUTION, WINDOW_HEIGHT)),
+                ..default()
+            },
+            ..default()
+        },
+        main_pass_layer,
+    ));
+
+    // The main pass camera.
+    commands.spawn((Camera2dBundle::default(), main_pass_layer));
+
     // Perfect isometric rotation
     let mut transform =
         Transform::from_rotation(Quat::from_euler(EulerRot::XYZ, 0., 45_f32.to_radians(), 0.));
@@ -97,6 +153,11 @@ fn startup(
     );
     let camera = Camera3dBundle {
         transform,
+        camera: Camera {
+            order: -1,
+            target: RenderTarget::Image(image_handle),
+            ..default()
+        },
         ..default()
     };
 
